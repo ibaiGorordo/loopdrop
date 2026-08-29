@@ -4,10 +4,15 @@ All notable changes to Loopdrop will be documented in this file. The project
 uses [Semantic Versioning](https://semver.org/) and follows the structure of
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## [Unreleased]
+
+## [0.1.0] - 2026-08-29
 
 ### Added
 
+- Public desktop packages for signed and notarized universal macOS plus Linux
+  x64 and arm64 with a glibc 2.35 baseline. Windows distribution is deferred
+  pending Authenticode signing and release validation.
 - Full Electron video-to-GIF editor with local preview, trim, size, frame-rate,
   palette, and loop controls.
 - Compact menu-bar and system-tray converter with drag and drop, clip and
@@ -20,9 +25,11 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
 - Pinned LGPL-compatible FFmpeg build scripts and third-party notices.
 - Checksum-verified packaged Electron, Chromium, React, and application license
   manifests.
-- Cross-platform CI and draft-release automation for macOS, Windows, and Linux.
-- Manual and periodic signed-update checks on macOS and Windows, with
-  conversion-safe restart deferral and verified release metadata.
+- Cross-platform CI plus draft-release automation for signed and notarized
+  macOS packages and Linux x64/arm64 packages.
+- Manual and periodic signed-update checks on macOS, with conversion-safe
+  restart deferral and verified release metadata; Linux links to GitHub
+  Releases for package updates.
 
 ### Fixed
 
@@ -38,3 +45,6 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
   connections.
 - Release checks for signing, notarization, FFmpeg configuration, checksums,
   and build provenance.
+
+[Unreleased]: https://github.com/ibaiGorordo/loopdrop/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ibaiGorordo/loopdrop/releases/tag/v0.1.0

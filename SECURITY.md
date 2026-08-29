@@ -10,6 +10,11 @@ latest published release only.
 | Latest release | Yes |
 | Older releases | No |
 
+The v0.1.0 desktop release supports macOS 13 or later and Linux with glibc 2.35
+or later on x64 or arm64. Ubuntu 22.04+ and Debian 12+ are the supported Linux
+distribution examples. Windows is not an officially distributed platform in
+this release.
+
 ## Reporting a vulnerability
 
 Please report suspected vulnerabilities privately through
@@ -39,11 +44,12 @@ projects.
 - Public desktop releases are built in GitHub Actions from reviewed, stable
   version tags whose commits are reachable from the protected `main` branch.
 - macOS releases must be Developer ID signed and notarized.
-- Windows releases must be Authenticode signed.
+- Any future Windows release must be Authenticode signed before publication.
 - Release artifacts include SHA-256 checksums and GitHub build provenance.
-- Packaged desktop apps contact the public GitHub release service shortly after
-  startup to check for updates. Draft releases are not visible to the updater,
-  and the official release workflow accepts stable versions only.
+- The packaged macOS app contacts the public GitHub release service shortly
+  after startup to check for updates. Linux opens the Releases page only when
+  requested. Draft releases are not visible to the macOS updater, and the
+  official release workflow accepts stable versions only.
 
 These guarantees apply to official artifacts attached to releases in this
 repository. Builds provided elsewhere may have been modified.

@@ -10,8 +10,16 @@ and opens a draft GitHub release for final human review.
 | Platform | Architecture | Artifacts |
 | --- | --- | --- |
 | macOS 13 or later | Universal, arm64 + x64 | DMG and ZIP |
-| Windows | x64 | NSIS installer |
-| Linux | x64 and arm64 | AppImage and deb |
+| Linux, glibc 2.35+ | x64 and arm64 | AppImage and deb |
+
+Version 0.1.0 intentionally does not publish Windows artifacts. The Windows
+application and NSIS configuration remain in the repository for development,
+but public Windows distribution is deferred until Authenticode signing and
+clean-machine release validation are available.
+
+Linux artifacts are built on Ubuntu 22.04 runners to establish a glibc 2.35
+baseline. Ubuntu 22.04+ and Debian 12+ are the supported distribution examples;
+do not describe the AppImage as compatible with every Linux distribution.
 
 The macOS ZIP is required by the updater even though the DMG is the normal
 manual download. Update manifests, applicable blockmaps, FFmpeg compliance files,
@@ -22,11 +30,11 @@ Electron, Chromium, React, React DOM, and third-party notices plus a
 SHA-256-backed `LICENSE-MANIFEST.json`; release jobs verify its exact file set and
 hashes before uploading anything.
 
-Automatic installation is enabled only for the signed macOS and Windows
-packages. Linux users are directed to the public Releases page until Loopdrop
-has a signed Linux repository/package-verification model. The first public
-Developer ID build is the update baseline; an Apple Development-signed local
-prototype is not expected to update itself into the production build.
+Automatic installation is enabled only for the signed macOS package. Linux
+users are directed to the public Releases page until Loopdrop has a signed
+Linux repository/package-verification model. The first public Developer ID
+build is the update baseline; an Apple Development-signed local prototype is
+not expected to update itself into the production build.
 
 ## One-time repository setup
 
@@ -46,8 +54,10 @@ prototype is not expected to update itself into the production build.
 6. Enable private vulnerability reporting, Dependabot alerts, and Dependabot
    security updates. The checked-in Dependabot configuration also proposes
    routine dependency and SHA-pinned action updates.
-7. Add the signing secrets listed below as **environment secrets**. Do not
-   create repository or organization secrets with the same names.
+7. Add the macOS signing and notarization secrets listed below as
+   **environment secrets**. Windows secrets are not required while Windows
+   releases are deferred. Do not create repository or organization secrets
+   with the same names.
 
 Keep pull-request CI unsigned and secret-free. Signing commands fail closed if
 any required secret is absent, and their jobs use the protected `release`
@@ -88,13 +98,23 @@ decodes `APPLE_API_KEY_B64` only inside the signing step, validates its format,
 and deletes the temporary runner file when that step exits. It is never written
 to the repository or an artifact.
 
-## Windows signing secrets
+## Deferred Windows release
 
-The Windows installer and packaged executables must be signed by a publicly
-trusted Authenticode identity. electron-builder signs `.exe` files copied as
-extra resources, and the release job fails unless the installer, main app,
-bundled `ffmpeg.exe`, and bundled `ffprobe.exe` all report valid Authenticode
-signatures.
+Version 0.1.0 does not build or upload an official Windows installer, and its
+release does not require Windows signing secrets. Before Windows distribution
+is enabled in a later version, the installer and packaged executables must be
+signed by a publicly trusted Authenticode identity. The release process must
+fail unless the installer, main app, bundled `ffmpeg.exe`, and bundled
+`ffprobe.exe` all report valid Authenticode signatures.
+
+Leave the `ENABLE_WINDOWS_RELEASE` repository variable unset or set to `false`
+for v0.1.0. Setting it to `true` runs the retained Windows packaging job for
+development validation, but the release job intentionally does not download or
+publish that job's artifacts. A future Windows release must restore Windows as
+an explicit release dependency and expected asset set in the same reviewed
+workflow change that enables distribution.
+
+The future Windows release environment will require:
 
 | Environment secret | Value |
 | --- | --- |
@@ -180,8 +200,8 @@ MCP behavior, and npm account two-factor authentication. Do not add an
 
 6. Approve the protected `release` environment deployment request or requests
    after reviewing the tagged commit.
-7. Wait for all architecture builds, signing checks, smoke tests, checksums, and
-   attestations to pass.
+7. Wait for the macOS and Linux architecture builds, macOS signing and
+   notarization checks, smoke tests, checksums, and attestations to pass.
 
 The tag must be annotated, must match the package version exactly, and must point
 to a commit reachable from `origin/main`. The workflow creates a **draft**
@@ -198,21 +218,26 @@ check all of the following:
 - Gatekeeper identifies the expected Developer ID publisher;
 - `codesign --verify --deep --strict` and `spctl --assess` pass;
 - the notarization ticket validates without relying on the build machine;
-- the Windows installer shows the expected publisher and installs/uninstalls;
-- the Windows installer and Loopdrop application executable have valid
-  Authenticode signatures, as do the bundled FFmpeg and FFprobe executables;
-- x64 and arm64 AppImages launch on representative Linux distributions;
-- both deb packages install, launch, and uninstall cleanly;
+- x64 and arm64 AppImages launch on clean Ubuntu 22.04+ and Debian 12+ systems
+  for the matching architectures;
+- both deb packages install, launch, and uninstall cleanly on those supported
+  distribution examples;
+- packaged Linux executables do not require a glibc version newer than 2.35;
 - a real local video converts to a correctly timed GIF on each platform;
+- the asset list contains no Windows installer or Windows update metadata;
 - update manifests and their referenced artifacts are present together;
-- a signed older production build finds, downloads, and installs the newer
-  version without interrupting an active conversion;
 - a manual check reports current-version and offline states correctly, and a
   draft release is not offered before publication;
 - the packaged `LICENSE-MANIFEST.json` under the app's resources/licenses path
   and every notice it references are present;
 - `SHA256SUMS` verifies; and
 - GitHub verifies the artifact attestation for representative installers.
+
+For releases after v0.1.0, additionally verify that a signed older production
+macOS build finds, downloads, and installs the new version without interrupting
+an active conversion. When Windows distribution is enabled, restore equivalent
+installer, uninstaller, Authenticode, bundled-FFmpeg, and update tests before
+publishing its first artifact.
 
 Example checksum and attestation verification:
 

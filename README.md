@@ -12,47 +12,51 @@
 <p align="center">
   <a href="https://github.com/ibaiGorordo/loopdrop/actions/workflows/ci.yml"><img alt="Continuous integration status" src="https://github.com/ibaiGorordo/loopdrop/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-174332"></a>
-  <img alt="macOS, Windows, and Linux" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-f4a261">
+  <img alt="macOS and Linux" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux-f4a261">
 </p>
 
 All media processing runs on the same computer through FFmpeg. Source videos
 and generated GIFs are never uploaded.
 
-> **Release status:** Loopdrop 0.1.0 is under active development. There is no
-> public installer release or published npm package yet. The source can be run
-> and packaged locally, but current development builds are not a substitute for
-> the signed, notarized, clean-machine-tested release described in
-> [Releasing Loopdrop](docs/RELEASING.md).
+> **Release status:** Loopdrop 0.1.0 is the first public desktop release and
+> supports macOS and Linux. Download it only from
+> [GitHub Releases](https://github.com/ibaiGorordo/loopdrop/releases). A Windows
+> installer and the npm CLI/MCP package are not part of this release.
 
 ![Animated Loopdrop demo showing a video file dragged into the home-screen drop zone and the loaded preview playing](docs/images/editor-demo.gif)
 
 ## Install
 
-The first signed public release is being prepared. There is currently no
-official installer download. When it is published, installers will be
-available only from [GitHub Releases](https://github.com/ibaiGorordo/loopdrop/releases).
-You can [run Loopdrop from source](#running-from-source) today.
+Download the latest official version from
+[GitHub Releases](https://github.com/ibaiGorordo/loopdrop/releases). If the
+Releases page does not yet list version 0.1.0, the release is still being
+reviewed; [run Loopdrop from source](#running-from-source) in the meantime.
 
-After the first release is published, choose the installer for your computer:
+Choose the package for your computer:
 
 | Platform | Download | Install |
 | --- | --- | --- |
 | macOS 13+ (Apple silicon or Intel) | `loopdrop-<version>-mac-universal.dmg` | Open the DMG, drag Loopdrop to Applications, then open it normally. |
-| Windows x64 | `loopdrop-<version>-win-x64.exe` | Run the signed installer, then launch Loopdrop from the Start menu or desktop shortcut. |
-| Debian or Ubuntu (x64) | `loopdrop-<version>-linux-amd64.deb` | Run `sudo apt install ./loopdrop-<version>-linux-amd64.deb`. |
-| Debian or Ubuntu (arm64) | `loopdrop-<version>-linux-arm64.deb` | Run `sudo apt install ./loopdrop-<version>-linux-arm64.deb`. |
-| Other Linux (x64 or arm64) | Matching `.AppImage` | Make it executable with `chmod +x <file>.AppImage`, then open it. |
+| Ubuntu 22.04+ or Debian 12+ (x64) | `loopdrop-<version>-linux-amd64.deb` | Run `sudo apt install ./loopdrop-<version>-linux-amd64.deb`. |
+| Ubuntu 22.04+ or Debian 12+ (arm64) | `loopdrop-<version>-linux-arm64.deb` | Run `sudo apt install ./loopdrop-<version>-linux-arm64.deb`. |
+| Compatible glibc 2.35+ distribution (x64 or arm64) | Matching `.AppImage` | Make it executable with `chmod +x <file>.AppImage`, then open it. |
 
-Download Loopdrop only from this repository. Signed macOS and Windows builds
-check GitHub for updates; Linux builds link back to the Releases page.
+The macOS build is Developer ID signed and notarized. Linux packages require
+glibc 2.35 or later; Ubuntu 22.04+ and Debian 12+ are the supported distribution
+examples. Other glibc-based distributions may work when their desktop runtime
+dependencies are available but are not yet release-validated. Linux packages
+include checksums and GitHub build provenance but are not distributed through a
+signed package repository. The signed macOS build checks GitHub for updates;
+Linux builds link back to the Releases page. Windows support is planned after
+its installer can be Authenticode signed and validated on clean systems.
 
 ## What it includes
 
 - A full desktop editor for previewing a video, trimming a range, choosing the
   output size, frame rate, palette size, and loop behavior.
-- A 410 × 176 mini converter in the macOS menu bar or Windows/Linux system
-  tray. Drop or choose a video, select a clip length and quality preset, then
-  create the GIF without opening the full editor.
+- A 410 × 176 mini converter in the macOS menu bar or Linux system tray.
+  Drop or choose a video, select a clip length and quality preset, then create
+  the GIF without opening the full editor.
 - Native, multithreaded FFmpeg conversion that continues while the app is
   behind another window or the full editor is closed.
 - Automatic desktop output to the Downloads folder, with collision-safe names
@@ -60,14 +64,15 @@ check GitHub for updates; Linux builds link back to the Releases page.
 - A scriptable CLI with structured JSON output, progress events, stable exit
   codes, and cancellation.
 - A local stdio MCP server so an agent can inspect videos and create GIFs.
-- Signed macOS and Windows self-updates from reviewed GitHub Releases, with a
-  manual update command and quiet periodic checks.
+- Signed macOS self-updates from reviewed GitHub Releases, with a manual update
+  command and quiet periodic checks. Linux opens the Releases page instead of
+  replacing packages in place.
 - A shared conversion core, consistent timing, palette generation, atomic
   output writes, and a maximum-frame guard across every interface.
 
-Loopdrop is designed for macOS, Windows, and Linux. The present prototype has
-primarily been exercised on macOS; every production installer still needs the
-cross-platform release validation listed below.
+Loopdrop 0.1.0 supports macOS and Linux. Windows remains a planned platform and
+will not have an official download until its installer is signed and passes the
+same clean-machine release validation.
 
 ## Desktop app
 
@@ -113,9 +118,9 @@ quit controls. Launch at login is available in a packaged build.
 
 ### Default settings
 
-On macOS, choose **Loopdrop → Settings…** or press **Command-,**. On Windows or
-Linux, choose **File → Settings…**. The **Defaults** button in the full editor
-opens the same panel.
+On macOS, choose **Loopdrop → Settings…** or press **Command-,**. On Linux,
+choose **File → Settings…**. The **Defaults** button in the full editor opens
+the same panel.
 
 Defaults cover the full-editor and mini clip length, mini quality, full-editor
 output size, frame rate, palette size, and loop behavior. They apply when the
@@ -124,12 +129,11 @@ progress. The preferences are stored locally in the app profile.
 
 ### Updates
 
-Packaged macOS and Windows builds quietly check the public Loopdrop GitHub
-Releases feed shortly after launch and every six hours while the tray app keeps
-running. Choose **Loopdrop → Check for Updates…** on macOS, **Help → Check for
-Updates…** on Windows, or use the tray menu to check manually. Manual checks
-report whether the installed version is current or whether the network request
-failed.
+The packaged macOS build quietly checks the public Loopdrop GitHub Releases
+feed shortly after launch and every six hours while the menu-bar app keeps
+running. Choose **Loopdrop → Check for Updates…** or use the menu-bar menu to
+check manually. Manual checks report whether the installed version is current
+or whether the network request failed.
 
 An available signed update downloads in the background. Loopdrop then offers
 **Restart and Install** or **Later**; it will never restart in the middle of a
@@ -175,7 +179,7 @@ Then start Vite and Electron together:
 npm run dev
 ```
 
-The Windows release build uses
+Windows development packaging and any future release build use
 [`scripts/build-ffmpeg-windows.ps1`](scripts/build-ffmpeg-windows.ps1) inside an
 MSYS2 MINGW64 environment. See [Releasing Loopdrop](docs/RELEASING.md) for the
 complete release toolchain.
@@ -384,10 +388,10 @@ when the agent needs the source duration or dimensions.
   to the main process.
 - FFmpeg release builds have network support and external autodetection
   disabled. The exact source and configuration are retained for auditability.
-- Packaged macOS and Windows builds check GitHub Releases for updates. Linux
-  opens the same fixed public Releases page only when requested. This contacts
-  GitHub, but it does not send the source video or generated GIF. The CLI and
-  MCP server do not perform update checks.
+- The packaged macOS build checks GitHub Releases for updates. Linux opens the
+  same fixed public Releases page only when requested. This contacts GitHub,
+  but it does not send the source video or generated GIF. The CLI and MCP
+  server do not perform update checks.
 
 Review [SECURITY.md](SECURITY.md) for vulnerability reporting and the release
 security model. Do not attach private videos to public issues.
@@ -414,25 +418,23 @@ Desktop media previews use a private application protocol with byte-range
 streaming. Conversion jobs run in the Electron main process and temporarily
 block app suspension, so hiding the window does not pause encoding.
 
-## Distribution status and roadmap to the first release
+## Distribution status and roadmap
 
-The repository contains CI and draft-release automation, but a production
-release still requires all of the following:
+The v0.1.0 desktop release contains a signed and notarized universal macOS DMG
+and ZIP plus Linux AppImage and deb packages for x64 and arm64 with a glibc 2.35
+baseline. Release assets also include checksums, GitHub provenance attestations,
+FFmpeg compliance materials, and update metadata where applicable.
 
-- active Apple Developer Program membership, a Developer ID Application
-  certificate, hardened-runtime signing, notarization, and Gatekeeper checks;
-- a publicly trusted Windows Authenticode signing identity;
-- signed macOS universal and Windows artifacts plus Linux x64/arm64 artifacts;
-- clean-machine conversion, installation, uninstallation, and update tests;
-- review of checksums, provenance attestations, FFmpeg compliance materials,
-  and the draft GitHub release; and
-- a separate reviewed publication of the CLI/MCP package to npm.
+Windows is intentionally deferred. Its NSIS target remains in the build
+configuration for development, but no official Windows artifact will be
+published until a publicly trusted Authenticode signing identity is available
+and the signed installer passes clean-machine installation, conversion,
+update, and uninstallation tests.
 
-Planned installer formats are macOS DMG and ZIP, Windows NSIS, and Linux
-AppImage and deb. They are targets in the build configuration, not currently
-published downloads. See [docs/RELEASING.md](docs/RELEASING.md) for the
-maintainer checklist and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for
-runtime attribution.
+Publishing the CLI and MCP server to npm is also a separate, future release;
+the desktop release does not publish an npm package. See
+[docs/RELEASING.md](docs/RELEASING.md) for the maintainer checklist and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for runtime attribution.
 
 ## Contributing
 

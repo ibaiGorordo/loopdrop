@@ -5,6 +5,7 @@ set -euo pipefail
 FFMPEG_VERSION="9.0.1"
 FFMPEG_SHA256="cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635"
 FFMPEG_SOURCE_URL="https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"
+FFMPEG_MACOS_DEPLOYMENT_TARGET="13.0"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd -P)"
 ARCHIVE_DIR="${PROJECT_DIR}/vendor/cache"
 ARCHIVE_PATH="${ARCHIVE_DIR}/ffmpeg-${FFMPEG_VERSION}.tar.xz"
@@ -53,6 +54,10 @@ fi
 tar -xf "${ARCHIVE_PATH}" -C "${BUILD_DIR}"
 source_dir="${BUILD_DIR}/ffmpeg-${FFMPEG_VERSION}"
 prefix_dir="${BUILD_DIR}/install"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  export MACOSX_DEPLOYMENT_TARGET="${FFMPEG_MACOS_DEPLOYMENT_TARGET}"
+fi
 
 cd "${source_dir}"
 ./configure \

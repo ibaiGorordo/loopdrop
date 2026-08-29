@@ -96,6 +96,8 @@ jobs:
     needs: validate
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
     strategy:
       fail-fast: false
       matrix:
@@ -122,7 +124,24 @@ jobs:
           set -euo pipefail
           output="vendor/ffmpeg/${{ matrix.arch }}"
           test "$(cat "$output/version.txt")" = "$FFMPEG_VERSION"
-          ! grep -Eq -- '--enable-(gpl|nonfree|version3)' "$output/build-configuration.txt"
+          verify_macos_minos() {
+            local binary="$1"
+            local minos
+            minos="$(otool -l "$binary" | awk '
+              $1 == "cmd" && $2 == "LC_BUILD_VERSION" { build_version = 1; next }
+              build_version && $1 == "minos" { print $2; exit }
+            ')"
+            if [[ "$minos" != "$MACOSX_DEPLOYMENT_TARGET" ]]; then
+              echo "$binary requires macOS ${minos:-unknown}; expected $MACOSX_DEPLOYMENT_TARGET." >&2
+              exit 1
+            fi
+          }
+          verify_macos_minos "$output/ffmpeg"
+          verify_macos_minos "$output/ffprobe"
+          if grep -Eq -- '--enable-(gpl|nonfree|version3)' "$output/build-configuration.txt"; then
+            echo "Refusing a GPL, nonfree, or version-3-only FFmpeg build." >&2
+            exit 1
+          fi
           filters="$("$output/ffmpeg" -hide_banner -filters 2>/dev/null)"
           grep -Fq palettegen <<<"$filters"
           grep -Fq paletteuse <<<"$filters"
@@ -159,6 +178,8 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     environment: release
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
     steps:
       - name: Check out the tagged source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -202,6 +223,23 @@ jobs:
           chmod 0755 vendor/ffmpeg/current/ffmpeg vendor/ffmpeg/current/ffprobe
           lipo vendor/ffmpeg/current/ffmpeg -verify_arch arm64 x86_64
           lipo vendor/ffmpeg/current/ffprobe -verify_arch arm64 x86_64
+          verify_macos_minos() {
+            local binary="$1"
+            local arch="$2"
+            local minos
+            minos="$(otool -arch "$arch" -l "$binary" | awk '
+              $1 == "cmd" && $2 == "LC_BUILD_VERSION" { build_version = 1; next }
+              build_version && $1 == "minos" { print $2; exit }
+            ')"
+            if [[ "$minos" != "$MACOSX_DEPLOYMENT_TARGET" ]]; then
+              echo "$binary ($arch) requires macOS ${minos:-unknown}; expected $MACOSX_DEPLOYMENT_TARGET." >&2
+              exit 1
+            fi
+          }
+          for binary in vendor/ffmpeg/current/ffmpeg vendor/ffmpeg/current/ffprobe; do
+            verify_macos_minos "$binary" arm64
+            verify_macos_minos "$binary" x86_64
+          done
           cp ffmpeg-slices/arm64/COPYING.LGPLv2.1 vendor/ffmpeg/current/
           cp ffmpeg-slices/arm64/FFMPEG-LICENSE.md vendor/ffmpeg/current/
           cp ffmpeg-slices/arm64/version.txt vendor/ffmpeg/current/
@@ -365,6 +403,8 @@ jobs:
 
   package-windows:
     name: Package signed Windows x64 app
+    # Deferred until the Windows signing certificate and release secrets are ready.
+    if: ${{ vars.ENABLE_WINDOWS_RELEASE == 'true' }}
     needs: validate
     runs-on: windows-2025
     timeout-minutes: 75
@@ -538,14 +578,16 @@ jobs:
     needs: validate
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 75
+    env:
+      LOOPDROP_MAX_GLIBC_VERSION: "2.35"
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: x64
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
     steps:
       - name: Check out the tagged source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -564,7 +606,7 @@ jobs:
       - name: Install FFmpeg build tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends build-essential libdigest-sha-perl nasm pkg-config xz-utils
+          sudo apt-get install --yes --no-install-recommends binutils build-essential libdigest-sha-perl nasm pkg-config xz-utils
 
       - name: Build pinned LGPL-only FFmpeg
         run: ./scripts/build-ffmpeg-unix.sh vendor/ffmpeg/current
@@ -574,7 +616,34 @@ jobs:
         run: |
           set -euo pipefail
           test "$(cat vendor/ffmpeg/current/version.txt)" = "$FFMPEG_VERSION"
-          ! grep -Eq -- '--enable-(gpl|nonfree|version3)' vendor/ffmpeg/current/build-configuration.txt
+          verify_glibc_ceiling() {
+            local binary="$1"
+            local max_glibc
+            command -v readelf >/dev/null 2>&1 || {
+              echo "readelf is required to verify the Linux compatibility baseline." >&2
+              exit 1
+            }
+            max_glibc="$(
+              readelf --version-info "$binary" \
+                | sed -nE 's/.*Name: GLIBC_([0-9]+(\.[0-9]+)+).*/\1/p' \
+                | sort -Vu \
+                | tail -n 1
+            )"
+            if [[ -z "$max_glibc" ]]; then
+              echo "Could not determine required GLIBC symbol versions for $binary." >&2
+              exit 1
+            fi
+            if [[ "$(printf '%s\n' "$max_glibc" "$LOOPDROP_MAX_GLIBC_VERSION" | sort -V | tail -n 1)" != "$LOOPDROP_MAX_GLIBC_VERSION" ]]; then
+              echo "$binary requires GLIBC_$max_glibc; maximum allowed is GLIBC_$LOOPDROP_MAX_GLIBC_VERSION." >&2
+              exit 1
+            fi
+          }
+          verify_glibc_ceiling vendor/ffmpeg/current/ffmpeg
+          verify_glibc_ceiling vendor/ffmpeg/current/ffprobe
+          if grep -Eq -- '--enable-(gpl|nonfree|version3)' vendor/ffmpeg/current/build-configuration.txt; then
+            echo "Refusing a GPL, nonfree, or version-3-only FFmpeg build." >&2
+            exit 1
+          fi
           filters="$(vendor/ffmpeg/current/ffmpeg -hide_banner -filters 2>/dev/null)"
           grep -Fq palettegen <<<"$filters"
           grep -Fq paletteuse <<<"$filters"
@@ -607,10 +676,37 @@ jobs:
           }
           packaged_ffmpeg="${packaged_ffmpegs[0]}"
           packaged_ffprobe="$(dirname "$packaged_ffmpeg")/ffprobe"
+          resources_dir="$(dirname "$(dirname "$packaged_ffmpeg")")"
+          packaged_app="$(dirname "$resources_dir")/loopdrop"
           test -x "$packaged_ffmpeg"
           test -x "$packaged_ffprobe"
+          test -x "$packaged_app"
+          verify_glibc_ceiling() {
+            local binary="$1"
+            local max_glibc
+            command -v readelf >/dev/null 2>&1 || {
+              echo "readelf is required to verify the Linux compatibility baseline." >&2
+              exit 1
+            }
+            max_glibc="$(
+              readelf --version-info "$binary" \
+                | sed -nE 's/.*Name: GLIBC_([0-9]+(\.[0-9]+)+).*/\1/p' \
+                | sort -Vu \
+                | tail -n 1
+            )"
+            if [[ -z "$max_glibc" ]]; then
+              echo "Could not determine required GLIBC symbol versions for $binary." >&2
+              exit 1
+            fi
+            if [[ "$(printf '%s\n' "$max_glibc" "$LOOPDROP_MAX_GLIBC_VERSION" | sort -V | tail -n 1)" != "$LOOPDROP_MAX_GLIBC_VERSION" ]]; then
+              echo "$binary requires GLIBC_$max_glibc; maximum allowed is GLIBC_$LOOPDROP_MAX_GLIBC_VERSION." >&2
+              exit 1
+            fi
+          }
+          verify_glibc_ceiling "$packaged_app"
+          verify_glibc_ceiling "$packaged_ffmpeg"
+          verify_glibc_ceiling "$packaged_ffprobe"
           "$packaged_ffprobe" -hide_banner -version >/dev/null
-          resources_dir="$(dirname "$(dirname "$packaged_ffmpeg")")"
           version="$(node -p "require('./package.json').version")"
           update_target="linux-${{ matrix.arch }}"
           node .github/scripts/verify-update-assets.cjs \
@@ -669,7 +765,6 @@ jobs:
     name: Create draft GitHub release
     needs:
       - package-macos
-      - package-windows
       - package-linux
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -702,13 +797,6 @@ jobs:
           path: release-parts/macos
           digest-mismatch: error
 
-      - name: Download Windows artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: release-windows-x64
-          path: release-parts/windows
-          digest-mismatch: error
-
       - name: Download Linux x64 artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -736,10 +824,6 @@ jobs:
             "release-parts/macos/latest-mac.yml"
             "release-parts/macos/ffmpeg-build-configuration-macos-arm64.txt"
             "release-parts/macos/ffmpeg-build-configuration-macos-x64.txt"
-            "release-parts/windows/loopdrop-${version}-win-x64.exe"
-            "release-parts/windows/loopdrop-${version}-win-x64.exe.blockmap"
-            "release-parts/windows/latest.yml"
-            "release-parts/windows/ffmpeg-build-configuration-windows-x64.txt"
             "release-parts/linux-x64/loopdrop-${version}-linux-x86_64.AppImage"
             "release-parts/linux-x64/loopdrop-${version}-linux-amd64.deb"
             "release-parts/linux-x64/latest-linux.yml"
