@@ -98,7 +98,7 @@ can also be dropped directly onto that icon. The mini window stays available
 when a native file picker is open and has only the high-frequency controls:
 
 <p align="center">
-  <img src="docs/images/mini-converter.png" width="410" alt="Compact Loopdrop menu-bar converter with a selected video, clip and quality controls, and the Create GIF button">
+  <img src="docs/images/mini-converter-demo.gif" width="820" alt="Animated macOS-style desktop demo showing a video dragged into the Loopdrop menu-bar mini converter">
 </p>
 
 - **Clip:** first 3, 5, or 10 seconds, or the full clip within safety limits;
