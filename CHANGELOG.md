@@ -6,6 +6,46 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-30
+
+### Changed
+
+- Rebuilt Loopdrop as a native macOS 13+ menu-bar application using SwiftUI,
+  AppKit, AVFoundation, Core Image, and ImageIO.
+- Reduced the universal Apple silicon and Intel application from hundreds of
+  megabytes to approximately 2 MB with no packaged third-party dependencies.
+- Replaced the full editor with a focused 410 × 176 converter containing only
+  clip, quality, preview, clear, progress, cancel, and create controls.
+- Full-video conversions now preserve duration by adapting the frame rate to
+  the 300-frame limit and report the effective rate.
+- Update checks now use Apple's networking stack and open the signed GitHub
+  release page for manual installation instead of silently replacing the app.
+
+### Added
+
+- Native background conversion protected from App Nap when the popover closes.
+- A lightweight, resolution-bounded video preview that releases decoding state
+  whenever the popover is hidden.
+- Universal arm64 and x86_64 builds with an explicit macOS 13 deployment target.
+- Native tests for orientation, every-frame GIF timing and dimensions, changing
+  frame content, frame limits, cancellation cleanup, and output races.
+
+### Removed
+
+- Electron, Chromium, Node.js, React, FFmpeg, FFprobe, and all npm dependencies.
+- Linux and prospective Windows packages, the full desktop editor, CLI, MCP
+  server, automatic self-updater, and their platform-specific build pipelines.
+- Runtime third-party notices; v0.1.0 remains immutable with the notices and
+  source required by its legacy Electron/FFmpeg artifacts.
+
+### Security
+
+- Output finalization uses an atomic no-replace operation, so a destination
+  created during conversion is never overwritten or deleted.
+- Quitting during conversion waits for cancellation and temporary-file cleanup.
+- Official packages contain the project MIT license, use hardened-runtime
+  Developer ID signing, and are notarized and stapled by Apple.
+
 ## [0.1.0] - 2026-08-29
 
 ### Added
@@ -46,5 +86,6 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
 - Release checks for signing, notarization, FFmpeg configuration, checksums,
   and build provenance.
 
-[Unreleased]: https://github.com/ibaiGorordo/loopdrop/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ibaiGorordo/loopdrop/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ibaiGorordo/loopdrop/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ibaiGorordo/loopdrop/releases/tag/v0.1.0

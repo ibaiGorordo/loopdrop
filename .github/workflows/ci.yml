@@ -10,76 +10,166 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  source-checks:
-    name: Source checks (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+  native-checks:
+    name: Native checks (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-24.04
+        runner:
           - macos-15
-          - windows-2025
+          - macos-15-intel
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type-check, build, and test
-        run: npm run check
-
-      - name: Verify the public npm package contents
-        if: runner.os == 'Linux'
-        run: npm pack --dry-run
-
-  ffmpeg-integration:
-    name: LGPL FFmpeg integration
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-          cache: npm
-
-      - name: Install application dependencies
-        run: npm ci
-
-      - name: Install FFmpeg build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends build-essential libdigest-sha-perl nasm pkg-config xz-utils
-
-      - name: Build pinned FFmpeg
-        run: ./scripts/build-ffmpeg-unix.sh vendor/ffmpeg/current
-
-      - name: Enforce FFmpeg license policy
+      - name: Record the Apple toolchain
         shell: bash
         run: |
           set -euo pipefail
-          test "$(cat vendor/ffmpeg/current/version.txt)" = "9.0.1"
-          ! grep -Eq -- '--enable-(gpl|nonfree|version3)' vendor/ffmpeg/current/build-configuration.txt
+          xcodebuild -version
+          xcrun swift --version
 
-      - name: Run integration tests
-        run: npm test
+      - name: Verify the dependency-free package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f Package.swift
+          test -d Sources/LoopdropNative
+          test -d Tests/LoopdropNativeTests
+          test -f Resources/Info.plist
+          test -x scripts/build-app.sh
+          command -v jq >/dev/null
+
+          dependency_graph="$RUNNER_TEMP/loopdrop-swift-dependencies.json"
+          xcrun swift package show-dependencies --format json > "$dependency_graph"
+          jq -e '.dependencies | type == "array" and length == 0' "$dependency_graph" >/dev/null
+
+          test "$(/usr/bin/plutil -extract CFBundleIdentifier raw Resources/Info.plist)" = \
+            "io.github.ibaigorordo.loopdrop"
+          source_version="$(/usr/bin/plutil -extract CFBundleShortVersionString raw Resources/Info.plist)"
+          source_build="$(/usr/bin/plutil -extract CFBundleVersion raw Resources/Info.plist)"
+          if [[ ! "$source_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "CFBundleShortVersionString must be a stable semantic version." >&2
+            exit 1
+          fi
+          case "$source_build" in
+            ''|0|*[!0-9]*) echo "CFBundleVersion must be a positive integer." >&2; exit 1 ;;
+          esac
+          test "$(/usr/bin/plutil -extract LSMinimumSystemVersion raw Resources/Info.plist)" = \
+            "13.0"
+
+          grep -Fxq "MIT License" LICENSE
+          grep -Fq "Permission is hereby granted, free of charge" LICENSE
+          grep -Fq "THE SOFTWARE IS PROVIDED \"AS IS\"" LICENSE
+
+      - name: Run native tests
+        run: >-
+          xcrun swift test --configuration release
+          -Xswiftc -strict-concurrency=complete
+          -Xswiftc -warnings-as-errors
+
+      - name: Build the universal application
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(/usr/bin/plutil -extract CFBundleShortVersionString raw Resources/Info.plist)"
+          build_number="$(/usr/bin/plutil -extract CFBundleVersion raw Resources/Info.plist)"
+          LOOPDROP_CONFIGURATION=release \
+          LOOPDROP_MARKETING_VERSION="$version" \
+          LOOPDROP_BUILD_NUMBER="$build_number" \
+            ./scripts/build-app.sh
+
+      - name: Validate the universal application
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=".build/app/loopdrop.app"
+          plist="$app/Contents/Info.plist"
+          binary="$app/Contents/MacOS/loopdrop"
+
+          test -d "$app"
+          test -f "$plist"
+          test -x "$binary"
+          test ! -e "$app/Contents/Frameworks"
+          test -f "$app/Contents/Resources/LICENSE"
+          test -f "$app/Contents/Resources/Loopdrop.icns"
+          test -f "$app/Contents/_CodeSignature/CodeResources"
+          cmp -s LICENSE "$app/Contents/Resources/LICENSE"
+          if /usr/bin/find "$app" -type l -print -quit | /usr/bin/grep -q .; then
+            echo "The application bundle must not contain symlinks." >&2
+            exit 1
+          fi
+          bundled_file_count=0
+          while IFS= read -r bundled_file; do
+            bundled_file_count=$((bundled_file_count + 1))
+            relative_file="${bundled_file#"$app"/}"
+            case "$relative_file" in
+              Contents/Info.plist|\
+              Contents/MacOS/loopdrop|\
+              Contents/Resources/LICENSE|\
+              Contents/Resources/Loopdrop.icns|\
+              Contents/_CodeSignature/CodeResources) ;;
+              *) echo "Unexpected file in application bundle: $relative_file" >&2; exit 1 ;;
+            esac
+          done < <(/usr/bin/find "$app" -type f | /usr/bin/sort)
+          test "$bundled_file_count" -eq 5
+
+          test "$(/usr/bin/plutil -extract CFBundleIdentifier raw "$plist")" = \
+            "io.github.ibaigorordo.loopdrop"
+          test "$(/usr/bin/plutil -extract CFBundleDisplayName raw "$plist")" = "Loopdrop"
+          test "$(/usr/bin/plutil -extract CFBundleExecutable raw "$plist")" = "loopdrop"
+          test "$(/usr/bin/plutil -extract CFBundleShortVersionString raw "$plist")" = \
+            "$(/usr/bin/plutil -extract CFBundleShortVersionString raw Resources/Info.plist)"
+          test "$(/usr/bin/plutil -extract CFBundleVersion raw "$plist")" = \
+            "$(/usr/bin/plutil -extract CFBundleVersion raw Resources/Info.plist)"
+          test "$(/usr/bin/plutil -extract LSMinimumSystemVersion raw "$plist")" = "13.0"
+          test "$(/usr/bin/plutil -extract LSUIElement raw "$plist")" = "true"
+
+          /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"
+          /usr/bin/xcrun lipo "$binary" -verify_arch arm64 x86_64
+          archs="$(/usr/bin/xcrun lipo -archs "$binary")"
+          arch_count=0
+          has_arm64=false
+          has_x86_64=false
+          for arch in $archs; do
+            arch_count=$((arch_count + 1))
+            case "$arch" in
+              arm64) has_arm64=true ;;
+              x86_64) has_x86_64=true ;;
+              *) echo "Unexpected packaged architecture: $arch" >&2; exit 1 ;;
+            esac
+          done
+          test "$arch_count" -eq 2
+          test "$has_arm64" = true
+          test "$has_x86_64" = true
+
+          for arch in arm64 x86_64; do
+            minos="$(/usr/bin/xcrun vtool -arch "$arch" -show-build "$binary" | \
+              /usr/bin/awk '$1 == "minos" { print $2; found = 1; exit } END { if (!found) exit 1 }')"
+            case "$minos" in
+              13.0|13.0.0) ;;
+              *) echo "$arch slice has unexpected minimum macOS version: $minos" >&2; exit 1 ;;
+            esac
+
+            while IFS= read -r dependency; do
+              case "$dependency" in
+                /System/Library/*|/usr/lib/*) ;;
+                *) echo "$arch slice has a non-system dependency: $dependency" >&2; exit 1 ;;
+              esac
+            done < <(/usr/bin/otool -arch "$arch" -L "$binary" | \
+              /usr/bin/tail -n +2 | /usr/bin/awk '{ print $1 }')
+          done
+
+          bundle_kib="$(/usr/bin/du -sk "$app" | /usr/bin/awk '{ print $1 }')"
+          if [ "$bundle_kib" -gt 10240 ]; then
+            echo "Application bundle is unexpectedly large: ${bundle_kib} KiB" >&2
+            exit 1
+          fi

@@ -1,8 +1,6 @@
-node_modules/
-dist/
-release/
-vendor/cache/
-vendor/ffmpeg/
+.build/
+.swiftpm/
+DerivedData/
 .DS_Store
 *.log
 .env
@@ -11,12 +9,7 @@ vendor/ffmpeg/
 *.cer
 *.certSigningRequest
 *.key
-*.mobileprovision
 *.p12
 *.p8
 *.pem
 *.pfx
-.npmrc
-coverage/
-.vinext/
-.wrangler/

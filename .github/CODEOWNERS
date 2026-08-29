@@ -1,6 +1,6 @@
 /.github/** @ibaiGorordo
-/scripts/build-ffmpeg-unix.sh @ibaiGorordo
-/scripts/build-ffmpeg-windows.ps1 @ibaiGorordo
+/Package.swift @ibaiGorordo
+/Resources/Info.plist @ibaiGorordo
+/scripts/build-app.sh @ibaiGorordo
 /docs/RELEASING.md @ibaiGorordo
 /SECURITY.md @ibaiGorordo
-/THIRD_PARTY_NOTICES.md @ibaiGorordo

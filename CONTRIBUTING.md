@@ -1,81 +1,74 @@
 # Contributing to Loopdrop
 
-Thank you for helping improve Loopdrop. Bug reports, focused pull requests,
-platform testing, documentation fixes, and reproducible media-compatibility
-reports are welcome.
+Bug reports, focused pull requests, documentation fixes, and reproducible
+media-compatibility reports are welcome.
 
 ## Before opening an issue
 
 - Search existing issues first.
 - Use a synthetic or non-sensitive video whenever a sample is required.
-- Include the operating system, CPU architecture, Loopdrop commit or version,
-  input container/codec when known, expected result, and actual result.
+- Include the macOS version, CPU architecture, Loopdrop version or commit,
+  input container and codec when known, expected result, and actual result.
 - Never upload a private video, signing credential, access token, or complete
   system log containing personal paths.
 
-Security vulnerabilities belong in the private reporting channel described in
-[SECURITY.md](SECURITY.md), not a public issue.
+Report security vulnerabilities privately as described in
+[SECURITY.md](SECURITY.md), not in a public issue.
 
 ## Development setup
 
-Loopdrop requires Node.js 22.13 or newer. From a source checkout:
+Loopdrop requires macOS 13 or later. Apple Command Line Tools are sufficient to
+build the application:
 
 ```bash
-npm ci
-npm run ffmpeg:build
-npm run dev
+swift build
+./scripts/build-app.sh
+open ".build/app/loopdrop.app"
 ```
 
-`npm run ffmpeg:build` builds the pinned FFmpeg release on macOS or Linux. You
-may instead set `LOOPDROP_FFMPEG_PATH` and `LOOPDROP_FFPROBE_PATH` to compatible
-local binaries. Windows FFmpeg release builds use the PowerShell/MSYS2 script
-documented in [docs/RELEASING.md](docs/RELEASING.md).
+The XCTest suite requires full Xcode:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcrun swift test
+```
+
+The Swift package must remain free of external package dependencies. Confirm
+that with `swift package show-dependencies`.
 
 ## Making a change
 
 1. Keep the change focused and preserve unrelated work.
-2. Reuse `core/converter.cjs` for conversion behavior shared by the desktop,
-   CLI, and MCP interfaces.
-3. Keep renderer code sandbox-compatible; do not enable Node.js integration or
-   expose general filesystem/process access through the preload bridge.
-4. Add or update tests for behavior changes.
-5. Update `README.md`, `CHANGELOG.md`, or release documentation when the public
-   interface or distribution process changes.
-6. Run the complete local check before submitting:
+2. Keep conversion independent of SwiftUI so it can run while the popover is
+   closed.
+3. Treat file URLs and media metadata as untrusted input.
+4. Never silently replace an output. Preserve atomic no-replace finalization
+   and cancellation cleanup.
+5. Keep frame timing, orientation, collision, and cancellation behavior covered
+   by tests.
+6. Update public documentation when behavior, compatibility, or distribution
+   changes.
+7. Run the XCTest suite, strict-concurrency build, and universal app build
+   before submitting.
 
-   ```bash
-   npm run check
-   ```
-
-The test suite uses Node's built-in test runner and covers the core, CLI, MCP
-server, and a real FFmpeg timing/cancellation path when a compatible binary is
-available.
-
-## Code conventions
-
-- Match the existing TypeScript, ESM, or CommonJS style of the file being
-  changed.
-- Prefer small, explicit interfaces between processes.
-- Treat local paths and media metadata as untrusted input.
-- Do not silently overwrite outputs. Preserve atomic finalization and cleanup
-  of temporary files.
-- Keep stdout machine-readable in JSON CLI mode and reserve MCP stdout for the
-  protocol; diagnostics belong on stderr.
-- Avoid adding a network dependency to the conversion path.
+Use Apple frameworks already present in macOS when practical. A proposal to add
+a third-party package must explain why the capability cannot reasonably be
+implemented with the system SDK, its binary and maintenance cost, and its
+license and security implications.
 
 ## Pull requests
 
-Describe the user-visible outcome, test commands and results, platforms tested,
-and any remaining limitations. UI changes should include a screenshot without
-private filenames. Packaging changes should explain their signing and
-third-party-license impact.
+Describe the user-visible result, validation commands, Mac architectures
+tested, and remaining limitations. UI changes should include a capture without
+private filenames. Packaging changes must explain signing, notarization, and
+license impact.
 
-Pull requests do not publish a release. Official artifacts are produced only
-from reviewed version tags through the protected release process in
+Pull requests never publish releases. Official artifacts are created only from
+reviewed annotated version tags through the protected process documented in
 [docs/RELEASING.md](docs/RELEASING.md).
 
 ## License
 
 By contributing, you agree that your contribution is licensed under the
-project's [MIT License](LICENSE). Third-party code or assets must have a
-compatible license and retain any required attribution.
+project's [MIT License](LICENSE). Do not copy third-party code or assets without
+explicitly reviewing compatibility and retaining every required notice.

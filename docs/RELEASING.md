@@ -1,266 +1,156 @@
-# Releasing loopdrop
+# Releasing Loopdrop
 
-Official releases are built from version tags by
-`.github/workflows/release.yml`. The workflow builds the bundled FFmpeg from
-verified upstream source, creates native installers, signs supported platforms,
-and opens a draft GitHub release for final human review.
+Official releases are produced by [the protected release workflow](../.github/workflows/release.yml)
+from annotated stable tags. The workflow builds one universal native macOS app,
+signs it with hardened runtime, notarizes and staples it, verifies Gatekeeper,
+and creates a draft GitHub release for final human QA.
 
-## Release outputs
+Published releases are immutable. Never move a tag or replace an asset after a
+release becomes public. The legacy v0.1.0 release and all of its FFmpeg source,
+license, and Linux/Electron artifacts must remain unchanged.
 
-| Platform | Architecture | Artifacts |
-| --- | --- | --- |
-| macOS 13 or later | Universal, arm64 + x64 | DMG and ZIP |
-| Linux, glibc 2.35+ | x64 and arm64 | AppImage and deb |
+## Outputs
 
-Version 0.1.0 intentionally does not publish Windows artifacts. The Windows
-application and NSIS configuration remain in the repository for development,
-but public Windows distribution is deferred until Authenticode signing and
-clean-machine release validation are available.
+A native release has exactly four explicit assets:
 
-Linux artifacts are built on Ubuntu 22.04 runners to establish a glibc 2.35
-baseline. Ubuntu 22.04+ and Debian 12+ are the supported distribution examples;
-do not describe the AppImage as compatible with every Linux distribution.
-
-The macOS ZIP is required by the updater even though the DMG is the normal
-manual download. Update manifests, applicable blockmaps, FFmpeg compliance files,
-`SHA256SUMS`, and GitHub provenance attestations are published with the
-installers. Every packaged app also contains a licenses directory under its
-resources path (`Contents/Resources/licenses` on macOS) with the Loopdrop,
-Electron, Chromium, React, React DOM, and third-party notices plus a
-SHA-256-backed `LICENSE-MANIFEST.json`; release jobs verify its exact file set and
-hashes before uploading anything.
-
-Automatic installation is enabled only for the signed macOS package. Linux
-users are directed to the public Releases page until Loopdrop has a signed
-Linux repository/package-verification model. The first public Developer ID
-build is the update baseline; an Apple Development-signed local prototype is
-not expected to update itself into the production build.
-
-## One-time repository setup
-
-1. Create the public `ibaiGorordo/loopdrop` repository and push the default
-   branch.
-2. Set the default `GITHUB_TOKEN` permission to read-only. Allow the workflow's
-   explicit release-job permissions for GitHub Releases, OIDC, artifact
-   attestations, and artifact metadata.
-3. In repository settings, create an environment named `release` **before any
-   release tag is pushed**.
-4. Add a required reviewer to that environment, prevent self-review if another
-   reviewer is available, and restrict deployment tags to `v*.*.*`.
-5. Create branch and tag rulesets. Require pull requests, CODEOWNER review, and
-   all `Source checks (…)` jobs plus `LGPL FFmpeg integration` on `main`.
-   Restrict creation, update, and deletion of tags matching `v*.*.*` to the
-   release maintainer.
-6. Enable private vulnerability reporting, Dependabot alerts, and Dependabot
-   security updates. The checked-in Dependabot configuration also proposes
-   routine dependency and SHA-pinned action updates.
-7. Add the macOS signing and notarization secrets listed below as
-   **environment secrets**. Windows secrets are not required while Windows
-   releases are deferred. Do not create repository or organization secrets
-   with the same names.
-
-Keep pull-request CI unsigned and secret-free. Signing commands fail closed if
-any required secret is absent, and their jobs use the protected `release`
-environment. Repository settings provide the required human gate; the workflow
-cannot create that protection itself.
-
-## macOS enrollment and secrets
-
-Public distribution outside the Mac App Store requires paid Apple Developer
-Program membership, a Developer ID Application certificate, hardened runtime,
-and notarization. A Developer ID Installer certificate is not needed for the
-DMG and ZIP produced here.
-
-After enrollment:
-
-1. As the Apple team Account Holder, create a **Developer ID Application**
-   certificate.
-2. Install it with its private key in Keychain Access.
-3. Export the identity and private key as a password-protected `.p12` file.
-4. Base64-encode the `.p12` and store it as `MAC_CSC_LINK`.
-5. Store its export password as `MAC_CSC_KEY_PASSWORD`.
-6. In App Store Connect, create a **Team API key** with App Manager access for
-   notarization. Do not use an Individual API key: this workflow and
-   electron-builder configuration require the Team key's issuer ID.
-7. Download the Team key's `.p8` file once, base64-encode it, and store it as
-   `APPLE_API_KEY_B64`. Add its key ID and issuer ID as the remaining secrets.
-
-| Environment secret | Value |
+| File | Purpose |
 | --- | --- |
-| `MAC_CSC_LINK` | Base64-encoded Developer ID Application `.p12` |
-| `MAC_CSC_KEY_PASSWORD` | Password used when exporting the `.p12` |
-| `APPLE_API_KEY_B64` | Base64-encoded App Store Connect `.p8` key |
-| `APPLE_API_KEY_ID` | Ten-character Team API key ID |
-| `APPLE_API_ISSUER` | Team API key issuer UUID |
+| `loopdrop-VERSION-mac-universal.dmg` | Normal drag-to-Applications installer |
+| `loopdrop-VERSION-mac-universal.zip` | Stapled app archive and v0.1 updater transition payload |
+| `latest-mac.yml` | Compatibility metadata for the v0.1 Electron updater |
+| `SHA256SUMS` | SHA-256 checksums for the other three files |
 
-electron-builder 26 expects `APPLE_API_KEY` to be a file path. The workflow
-decodes `APPLE_API_KEY_B64` only inside the signing step, validates its format,
-and deletes the temporary runner file when that step exits. It is never written
-to the repository or an artifact.
+GitHub adds source archives automatically. Native releases contain no Linux or
+Windows package, blockmap, FFmpeg source, third-party notice, npm package, CLI,
+or MCP artifact. The app bundle includes the root MIT license at
+`Contents/Resources/LICENSE`.
 
-## Deferred Windows release
+## Repository protection
 
-Version 0.1.0 does not build or upload an official Windows installer, and its
-release does not require Windows signing secrets. Before Windows distribution
-is enabled in a later version, the installer and packaged executables must be
-signed by a publicly trusted Authenticode identity. The release process must
-fail unless the installer, main app, bundled `ffmpeg.exe`, and bundled
-`ffprobe.exe` all report valid Authenticode signatures.
+- The default `GITHUB_TOKEN` permission is read-only.
+- `main` requires the native macOS CI checks.
+- Tags matching `v*.*.*` are protected.
+- The `release` environment requires a reviewer and permits only matching
+  version tags.
+- Signing secrets exist only in that protected environment.
+- Workflow actions are pinned to full commit SHAs.
 
-Leave the `ENABLE_WINDOWS_RELEASE` repository variable unset or set to `false`
-for v0.1.0. Setting it to `true` runs the retained Windows packaging job for
-development validation, but the release job intentionally does not download or
-publish that job's artifacts. A future Windows release must restore Windows as
-an explicit release dependency and expected asset set in the same reviewed
-workflow change that enables distribution.
+Pull-request CI is unsigned and never receives release secrets.
 
-The future Windows release environment will require:
+## Apple credentials
 
-| Environment secret | Value |
+Public distribution outside the Mac App Store requires an active Apple
+Developer Program membership, a **Developer ID Application** certificate, and
+an App Store Connect **Team API key** accepted by `notarytool`.
+
+The protected `release` environment contains:
+
+| Secret | Value |
 | --- | --- |
-| `WIN_CSC_LINK` | Base64-encoded OV/EV `.pfx` or a secure certificate URL supported by electron-builder |
-| `WIN_CSC_KEY_PASSWORD` | Certificate/private-key password |
+| `MAC_CSC_LINK` | Base64-encoded password-protected Developer ID Application P12 |
+| `MAC_CSC_KEY_PASSWORD` | P12 export password |
+| `APPLE_API_KEY_B64` | Base64-encoded App Store Connect Team API P8 |
+| `APPLE_API_KEY_ID` | API key ID |
+| `APPLE_API_ISSUER` | API issuer UUID |
 
-Many current certificate authorities issue private keys through hardware or a
-managed signing service rather than an exportable `.pfx`. In that case, replace
-the PFX environment integration with the provider-specific electron-builder
-signing hook while preserving the signature-verification step.
+The workflow decodes credentials only beneath `RUNNER_TEMP`, imports the P12
+into an isolated temporary keychain, requires the expected Developer ID team,
+and deletes the temporary keychain and files when packaging ends. Never put
+these values in repository secrets, source, logs, artifacts, or release notes.
 
-[Microsoft Artifact Signing Public Trust](https://learn.microsoft.com/azure/artifact-signing/quickstart)
-is available to Japanese organizations, but Microsoft currently limits
-individual developer enrollment to the United States and Canada. A Japan-based
-individual therefore needs a certificate from a compatible public CA or must
-release Windows builds later after establishing an eligible organization.
+## Prepare a version
 
-Never publish an unsigned Windows installer as an official production release.
-
-## FFmpeg compliance build
-
-loopdrop does not use the `ffmpeg-static` npm binary. Every release builds the
-pinned FFmpeg source with GPL, nonfree, version-3-only, external autodetected,
-and network components disabled. The release workflow rejects a forbidden build
-configuration and performs a real palette-based GIF conversion.
-
-The pinned source is:
-
-```text
-FFmpeg 9.0.1
-https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz
-SHA-256 cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635
-```
-
-When changing FFmpeg:
-
-1. Download the release and detached signature from `ffmpeg.org`.
-2. Verify the release-signing key fingerprint and signature.
-3. Update the version and pinned checksum in both FFmpeg build scripts, the
-   workflow, and `THIRD_PARTY_NOTICES.md`.
-4. Inspect `ffmpeg -buildconf` on every architecture.
-5. Run unit and packaged smoke tests on every runner.
-6. Attach the exact source archive, signature, license texts, checksum, and
-   configuration to the release.
-
-The repository documentation is engineering guidance, not legal advice. Review
-license and patent obligations before distributing in a new jurisdiction.
-
-## npm publication is separate
-
-Neither CI nor the desktop release workflow runs `npm publish`, and no npm token
-is required for either workflow. CI only runs `npm pack --dry-run` to inspect the
-prospective package. Keep the first npm publication as a separate, deliberate
-manual process after verifying package ownership, contents, provenance, CLI and
-MCP behavior, and npm account two-factor authentication. Do not add an
-`NPM_TOKEN` to the repository in preparation for a desktop release.
-
-## Creating a release
-
-1. Update `version` in `package.json` and `package-lock.json` using a stable
-   `MAJOR.MINOR.PATCH` version. This workflow deliberately rejects prerelease
-   suffixes, build metadata, mismatched lockfile versions, and a non-MIT package
-   license.
-2. Update user-facing release notes or the changelog.
-3. From a clean checkout, run:
+1. Set `CFBundleShortVersionString` in
+   [Resources/Info.plist](../Resources/Info.plist) to a stable
+   `MAJOR.MINOR.PATCH` value. This is the tracked release-version source.
+2. Increase `CFBundleVersion` monotonically.
+3. Update [CHANGELOG.md](../CHANGELOG.md), installation text, compatibility
+   notes, and any user-visible behavior.
+4. From a clean checkout, run:
 
    ```bash
-   npm ci
-   scripts/build-ffmpeg-unix.sh vendor/ffmpeg/current
-   npm test
-   npm run build
+   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+     xcrun swift test
+
+   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+     xcrun swift build \
+       -Xswiftc -warnings-as-errors \
+       -Xswiftc -strict-concurrency=complete
+
+   ./scripts/build-app.sh
+   swift package show-dependencies
    ```
 
-4. Commit and merge the release changes to the protected `main` branch.
-5. Create and push the matching annotated tag. The workflow deliberately fails
-   if the tag and package version differ.
+5. Confirm the dependency graph is empty, the app has exactly arm64 and x86_64
+   slices, each slice targets macOS 13.0, `codesign --verify --deep --strict`
+   passes, the bundled license matches the root license, and linked libraries
+   come only from `/System/Library` or `/usr/lib`.
+6. Commit and push the reviewed change to protected `main`. Wait for native CI
+   to pass.
+7. Create and push a matching annotated tag:
 
    ```bash
-   version="$(node -p "require('./package.json').version")"
-   git tag -a "v${version}" -m "loopdrop ${version}"
+   version="$(plutil -extract CFBundleShortVersionString raw Resources/Info.plist)"
+   git tag -a "v${version}" -m "Loopdrop ${version}"
    git push origin "v${version}"
    ```
 
-6. Approve the protected `release` environment deployment request or requests
-   after reviewing the tagged commit.
-7. Wait for the macOS and Linux architecture builds, macOS signing and
-   notarization checks, smoke tests, checksums, and attestations to pass.
+The workflow rejects prerelease/build suffixes, a tag/version mismatch, a
+lightweight tag, a tag not pointing at the checked-out commit, or a tag whose
+commit is not reachable from `origin/main`.
 
-The tag must be annotated, must match the package version exactly, and must point
-to a commit reachable from `origin/main`. The workflow creates a **draft**
-release. It does not publish npm packages and does not automatically expose a
-new desktop version to users or the automatic updater.
+## Packaging and notarization
 
-## Reviewing the draft
+The release job:
 
-Before publishing, use clean virtual machines or physical test devices and
-check all of the following:
+1. Builds explicit arm64 and x86_64 slices at macOS 13.0 and combines them.
+2. Signs `loopdrop.app` using `codesign --options runtime --timestamp`.
+3. Verifies the designated requirement, authority, team, hardened-runtime flag,
+   architecture set, deployment target, metadata, license, dependency allowlist,
+   and size ceiling.
+4. Submits a temporary ZIP to `notarytool`, requires `Accepted`, staples the
+   app, and validates the ticket and Gatekeeper assessment.
+5. Creates the final ZIP from that stapled app.
+6. Creates a DMG containing `loopdrop.app` and an Applications symlink, signs,
+   notarizes, staples, and Gatekeeper-validates the DMG.
+7. Generates v0.1 transition metadata, checksums, and GitHub artifact
+   attestations.
+8. Creates a **draft** release with an exact four-file allowlist.
 
-- the tag, package version, filenames, and release notes agree;
-- the macOS DMG opens and the app runs on both Apple Silicon and Intel;
-- Gatekeeper identifies the expected Developer ID publisher;
-- `codesign --verify --deep --strict` and `spctl --assess` pass;
-- the notarization ticket validates without relying on the build machine;
-- x64 and arm64 AppImages launch on clean Ubuntu 22.04+ and Debian 12+ systems
-  for the matching architectures;
-- both deb packages install, launch, and uninstall cleanly on those supported
-  distribution examples;
-- packaged Linux executables do not require a glibc version newer than 2.35;
-- a real local video converts to a correctly timed GIF on each platform;
-- the asset list contains no Windows installer or Windows update metadata;
-- update manifests and their referenced artifacts are present together;
-- a manual check reports current-version and offline states correctly, and a
-  draft release is not offered before publication;
-- the packaged `LICENSE-MANIFEST.json` under the app's resources/licenses path
-  and every notice it references are present;
-- `SHA256SUMS` verifies; and
-- GitHub verifies the artifact attestation for representative installers.
+The workflow never publishes a release automatically.
 
-For releases after v0.1.0, additionally verify that a signed older production
-macOS build finds, downloads, and installs the new version without interrupting
-an active conversion. When Windows distribution is enabled, restore equivalent
-installer, uninstaller, Authenticode, bundled-FFmpeg, and update tests before
-publishing its first artifact.
+## Review the draft
 
-Example checksum and attestation verification:
+Before publishing:
 
-```bash
-sha256sum --check SHA256SUMS
-gh attestation verify loopdrop-VERSION-mac-universal.dmg \
-  --repo ibaiGorordo/loopdrop
-```
+- verify the tag, plist version, filenames, checksums, and release notes agree;
+- download the DMG as a user would, open it, drag Loopdrop to Applications, and
+  launch it normally without a Gatekeeper bypass;
+- run `codesign --verify --deep --strict`, `spctl --assess`, and
+  `xcrun stapler validate` on the downloaded artifacts;
+- convert real MOV, MP4, and M4V samples on Apple silicon and Intel;
+- verify drag and drop, Finder selection, preview, clear, settings, background
+  conversion, cancellation, Downloads naming, and normal quit;
+- confirm manual current/available/offline update-check states;
+- confirm the bundle contains no unexpected framework, helper, executable, or
+  third-party notice and remains below the release size ceiling;
+- verify `SHA256SUMS` and representative GitHub attestations; and
+- test the signed v0.1.0-to-v0.2.0 updater transition on both architectures
+  before publishing v0.2.0. The native app deliberately uses manual updates
+  after that one-way migration.
 
-Once QA passes, edit the draft release on GitHub and publish it. Stable updater
-clients can see the release only after this step.
+If any source or artifact is wrong, delete the **draft**, fix the source, and
+issue a higher version/tag. Never reuse a tag or replace a published asset.
+
+Once all QA passes, publish the draft as the latest stable release.
 
 ## Failed or compromised releases
 
-- For a transient infrastructure failure, rerun the same tagged workflow. If an
-  existing draft contains an unexpected stale asset, remove that asset manually
-  before rerunning.
-- If source or dependencies must change, delete the draft, increment the
-  version, merge a new commit, and create a new tag. Never move or reuse a
-  release tag.
-- Do not silently replace artifacts in a published release.
-- If a published build is broken, publish a higher patch version. Update clients
-  cannot recover from a bad release by reusing the same version number.
-- For a suspected signing-key or workflow compromise, keep the release draft,
-  revoke or rotate the affected credentials, review the build provenance, and
-  follow `SECURITY.md` before publishing again.
+- Rerun the same workflow only for a transient infrastructure failure while its
+  release remains a draft and its tagged source is unchanged.
+- For a source fix, use a higher patch version and a new annotated tag.
+- For a broken published build, publish a higher version; do not modify the old
+  release.
+- For a suspected signing-key or workflow compromise, keep new releases draft,
+  revoke or rotate the credential, audit provenance, and follow
+  [SECURITY.md](../SECURITY.md).

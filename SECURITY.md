@@ -2,61 +2,61 @@
 
 ## Supported versions
 
-loopdrop is currently pre-1.0 software. Security fixes are provided for the
-latest published release only.
+Security fixes are provided for the latest published release only.
 
-| Version | Supported |
-| --- | --- |
-| Latest release | Yes |
-| Older releases | No |
-
-The v0.1.0 desktop release supports macOS 13 or later and Linux with glibc 2.35
-or later on x64 or arm64. Ubuntu 22.04+ and Debian 12+ are the supported Linux
-distribution examples. Windows is not an officially distributed platform in
-this release.
+| Version | Platform | Supported |
+| --- | --- | --- |
+| 0.2.x | macOS 13+ on Apple silicon and Intel | Yes |
+| 0.1.x | Legacy macOS and Linux Electron release | No |
 
 ## Reporting a vulnerability
 
-Please report suspected vulnerabilities privately through
+Report suspected vulnerabilities privately through
 [GitHub private vulnerability reporting](https://github.com/ibaiGorordo/loopdrop/security/advisories/new).
 Do not open a public issue until a fix or coordinated disclosure is ready.
 
 Include, when possible:
 
-- the affected loopdrop version and operating system;
-- steps to reproduce and the expected security impact;
-- logs or a minimal test file with personal information removed; and
+- the affected Loopdrop version, macOS version, and CPU architecture;
+- reproduction steps and expected security impact;
+- sanitized logs or a minimal synthetic media file; and
 - whether you believe the issue is being actively exploited.
 
-Do not upload private or sensitive videos. A synthetic sample that demonstrates
-the issue is preferred. If a real file is essential, wait for a maintainer to
-agree on a secure transfer method.
+Never upload a private video, signing key, certificate, API token, or log that
+contains sensitive paths. Wait for a maintainer to agree on a secure transfer
+method if a real file is essential.
 
 We aim to acknowledge a complete report within seven days. Investigation and
-release timing depend on severity and the coordination required with upstream
-projects.
+release timing depend on severity and any disclosure coordination required.
 
 ## Security model
 
-- Video conversion runs locally through a bundled FFmpeg executable.
-- Source videos and generated GIFs are not uploaded by loopdrop.
-- The Electron renderer is sandboxed and has no direct Node.js access.
-- Public desktop releases are built in GitHub Actions from reviewed, stable
-  version tags whose commits are reachable from the protected `main` branch.
-- macOS releases must be Developer ID signed and notarized.
-- Any future Windows release must be Authenticode signed before publication.
-- Release artifacts include SHA-256 checksums and GitHub build provenance.
-- The packaged macOS app contacts the public GitHub release service shortly
-  after startup to check for updates. Linux opens the Releases page only when
-  requested. Draft releases are not visible to the macOS updater, and the
-  official release workflow accepts stable versions only.
+- Video probing, decoding, scaling, and GIF encoding run locally through Apple
+  AVFoundation, Core Image, and ImageIO.
+- Source videos and generated GIFs are never uploaded.
+- The application packages no Electron, FFmpeg, JavaScript runtime, telemetry
+  SDK, or third-party Swift package.
+- Inputs are restricted to local file URLs and formats macOS can decode.
+- Conversion uses a 300-frame cap and streams frames instead of retaining an
+  entire video in memory.
+- Outputs use unique same-directory temporary files and atomic no-replace
+  finalization. A racing or existing destination is never overwritten.
+- Cancellation and normal application termination wait for owned temporary-file
+  cleanup.
+- The app contacts only GitHub's public HTTPS Releases API for version checks.
+  Update responses are treated as untrusted, release links must remain on
+  `https://github.com`, and installation is always a manual user action.
+- Official builds come from annotated stable tags reachable from protected
+  `main`, are Developer ID signed with hardened runtime, notarized and stapled
+  by Apple, checksum-listed, and accompanied by GitHub build provenance.
 
 These guarantees apply to official artifacts attached to releases in this
-repository. Builds provided elsewhere may have been modified.
+repository. Builds distributed elsewhere may have been modified.
 
 ## Signing-key incidents
 
 If a signing credential or release token may be compromised, report it through
-the private channel immediately. Maintainers should revoke the affected
-credential, suspend releases and updates, rotate repository secrets, and issue
-a new signed release only after the build chain has been reviewed.
+the private channel immediately. Maintainers must suspend releases, revoke or
+rotate the credential, review the build chain and published provenance, and
+issue a higher signed version only after the incident is understood. Published
+release assets and tags must never be silently replaced.
