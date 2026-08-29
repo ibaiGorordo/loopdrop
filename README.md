@@ -1,15 +1,50 @@
-# Loopdrop
+<p align="center">
+  <img src="public/icons/icon-512.png" width="112" height="112" alt="">
+</p>
 
-Loopdrop converts local video clips into GIFs through a desktop app, compact
-menu-bar converter, command-line interface, or MCP server. All media processing
-runs on the same computer through FFmpeg: source videos and generated GIFs are
-not uploaded.
+<h1 align="center">Loopdrop</h1>
+
+<p align="center">
+  <strong>Turn local video clips into polished GIFs.</strong><br>
+  Use the desktop editor, compact menu-bar converter, CLI, or MCP server.
+</p>
+
+<p align="center">
+  <a href="https://github.com/ibaiGorordo/loopdrop/actions/workflows/ci.yml"><img alt="Continuous integration status" src="https://github.com/ibaiGorordo/loopdrop/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-174332"></a>
+  <img alt="macOS, Windows, and Linux" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-f4a261">
+</p>
+
+All media processing runs on the same computer through FFmpeg. Source videos
+and generated GIFs are never uploaded.
 
 > **Release status:** Loopdrop 0.1.0 is under active development. There is no
 > public installer release or published npm package yet. The source can be run
 > and packaged locally, but current development builds are not a substitute for
 > the signed, notarized, clean-machine-tested release described in
 > [Releasing Loopdrop](docs/RELEASING.md).
+
+![Loopdrop editor showing a selected video, trim controls, GIF settings, and the Create GIF action](docs/images/editor.png)
+
+## Install
+
+The first signed public release is being prepared. There is currently no
+official installer download. When it is published, installers will be
+available only from [GitHub Releases](https://github.com/ibaiGorordo/loopdrop/releases).
+You can [run Loopdrop from source](#running-from-source) today.
+
+After the first release is published, choose the installer for your computer:
+
+| Platform | Download | Install |
+| --- | --- | --- |
+| macOS 13+ (Apple silicon or Intel) | `loopdrop-<version>-mac-universal.dmg` | Open the DMG, drag Loopdrop to Applications, then open it normally. |
+| Windows x64 | `loopdrop-<version>-win-x64.exe` | Run the signed installer, then launch Loopdrop from the Start menu or desktop shortcut. |
+| Debian or Ubuntu (x64) | `loopdrop-<version>-linux-amd64.deb` | Run `sudo apt install ./loopdrop-<version>-linux-amd64.deb`. |
+| Debian or Ubuntu (arm64) | `loopdrop-<version>-linux-arm64.deb` | Run `sudo apt install ./loopdrop-<version>-linux-arm64.deb`. |
+| Other Linux (x64 or arm64) | Matching `.AppImage` | Make it executable with `chmod +x <file>.AppImage`, then open it. |
+
+Download Loopdrop only from this repository. Signed macOS and Windows builds
+check GitHub for updates; Linux builds link back to the Releases page.
 
 ## What it includes
 
@@ -61,6 +96,10 @@ convert it; the editor shows a preview warning instead of disabling export.
 Click the Loopdrop menu-bar or tray icon to toggle the mini converter. A video
 can also be dropped directly onto that icon. The mini window stays available
 when a native file picker is open and has only the high-frequency controls:
+
+<p align="center">
+  <img src="docs/images/mini-converter.png" width="410" alt="Compact Loopdrop menu-bar converter with a selected video, clip and quality controls, and the Create GIF button">
+</p>
 
 - **Clip:** first 3, 5, or 10 seconds, or the full clip within safety limits;
 - **Quality:** Compact (320 px, 8 fps, 64 colors), Balanced (480 px, 12 fps,
