@@ -25,6 +25,8 @@ not uploaded.
 - A scriptable CLI with structured JSON output, progress events, stable exit
   codes, and cancellation.
 - A local stdio MCP server so an agent can inspect videos and create GIFs.
+- Signed macOS and Windows self-updates from reviewed GitHub Releases, with a
+  manual update command and quiet periodic checks.
 - A shared conversion core, consistent timing, palette generation, atomic
   output writes, and a maximum-frame guard across every interface.
 
@@ -80,6 +82,21 @@ Defaults cover the full-editor and mini clip length, mini quality, full-editor
 output size, frame rate, palette size, and loop behavior. They apply when the
 next video is added; changing them does not mutate a conversion already in
 progress. The preferences are stored locally in the app profile.
+
+### Updates
+
+Packaged macOS and Windows builds quietly check the public Loopdrop GitHub
+Releases feed shortly after launch and every six hours while the tray app keeps
+running. Choose **Loopdrop → Check for Updates…** on macOS, **Help → Check for
+Updates…** on Windows, or use the tray menu to check manually. Manual checks
+report whether the installed version is current or whether the network request
+failed.
+
+An available signed update downloads in the background. Loopdrop then offers
+**Restart and Install** or **Later**; it will never restart in the middle of a
+GIF conversion. Draft releases remain invisible until their release review is
+complete. Linux packages use **View Loopdrop Updates…** to open the fixed public
+Releases page instead of attempting an unsigned in-place package replacement.
 
 ## Running from source
 
@@ -328,7 +345,8 @@ when the agent needs the source duration or dimensions.
   to the main process.
 - FFmpeg release builds have network support and external autodetection
   disabled. The exact source and configuration are retained for auditability.
-- A packaged desktop build checks GitHub Releases for updates. This contacts
+- Packaged macOS and Windows builds check GitHub Releases for updates. Linux
+  opens the same fixed public Releases page only when requested. This contacts
   GitHub, but it does not send the source video or generated GIF. The CLI and
   MCP server do not perform update checks.
 

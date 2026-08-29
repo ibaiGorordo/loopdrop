@@ -309,6 +309,12 @@ jobs:
           test -x "$main_binary"
           test -x "$packaged_ffmpeg"
           test -x "$packaged_ffprobe"
+          version="$(node -p "require('./package.json').version")"
+          node .github/scripts/verify-update-assets.cjs \
+            mac-universal \
+            "$version" \
+            release \
+            "$app_path/Contents/Resources/app-update.yml"
           lipo "$main_binary" -verify_arch arm64 x86_64
           lipo "$packaged_ffmpeg" -verify_arch arm64 x86_64
           lipo "$packaged_ffprobe" -verify_arch arm64 x86_64
@@ -455,11 +461,29 @@ jobs:
           $appBinary = $appBinaries[0]
           $packagedFfmpeg = $packagedFfmpegs[0]
           $packagedFfprobe = $packagedFfprobes[0]
+          $appUpdatePath = Join-Path $appBinary.Directory.FullName "resources\app-update.yml"
+          $updateMetadataJson = & node .github/scripts/verify-update-assets.cjs win-x64 $version release $appUpdatePath
+          if ($LASTEXITCODE -ne 0) { throw "Windows updater metadata verification failed." }
+          $updateMetadata = $updateMetadataJson | ConvertFrom-Json
           foreach ($file in @($installer, $appBinary, $packagedFfmpeg, $packagedFfprobe)) {
             $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
             if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
               throw "Invalid Authenticode signature on $($file.FullName): $($signature.Status)"
             }
+          }
+          $installerSignature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          $installerPublisher = $installerSignature.SignerCertificate.GetNameInfo(
+            [System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName,
+            $false
+          )
+          if ([string]::IsNullOrWhiteSpace($installerPublisher)) {
+            throw "The signed installer certificate has no common name."
+          }
+          $publisherMatches = @($updateMetadata.publishers | Where-Object {
+            [string]::Equals([string]$_, $installerPublisher, [System.StringComparison]::OrdinalIgnoreCase)
+          }).Count -gt 0
+          if (-not $publisherMatches) {
+            throw "The updater publisherName does not exactly match the signed installer certificate common name."
           }
           & $packagedFfprobe.FullName -hide_banner -version | Out-Null
           if ($LASTEXITCODE -ne 0) { throw "The packaged FFprobe executable failed to start." }
@@ -587,6 +611,13 @@ jobs:
           test -x "$packaged_ffprobe"
           "$packaged_ffprobe" -hide_banner -version >/dev/null
           resources_dir="$(dirname "$(dirname "$packaged_ffmpeg")")"
+          version="$(node -p "require('./package.json').version")"
+          update_target="linux-${{ matrix.arch }}"
+          node .github/scripts/verify-update-assets.cjs \
+            "$update_target" \
+            "$version" \
+            release \
+            "$resources_dir/app-update.yml"
           node .github/scripts/verify-packaged-licenses.cjs \
             "$resources_dir/licenses" \
             linux \

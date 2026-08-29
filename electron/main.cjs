@@ -20,6 +20,7 @@ const { basename, extname, join, resolve } = require("node:path");
 const { Readable } = require("node:stream");
 const { resolveBinary } = require("../core/binaries.cjs");
 const { convertToGif, LoopdropError, probeVideo } = require("../core/converter.cjs");
+const { createUpdateManager } = require("./updater.cjs");
 
 app.setName("Loopdrop");
 
@@ -37,11 +38,13 @@ const jobProgress = new Map();
 const mediaFiles = new Map();
 const pendingOpenFiles = [];
 const startInMiniMode = process.argv.includes("--mini");
+const releasesUrl = "https://github.com/ibaiGorordo/loopdrop/releases";
 const videoExtensions = new Set([
   ".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".ogv", ".webm", ".wmv",
 ]);
 
 let isQuitting = false;
+let updateInstallRequested = false;
 let lastOutputPath = null;
 let mainWindow = null;
 let miniReady = false;
@@ -50,6 +53,7 @@ let currentMiniFile = null;
 let pendingMiniFile = null;
 let suspensionBlocker = null;
 let tray = null;
+let updateManager = null;
 
 function ffmpegPath() {
   return resolveBinary("ffmpeg", { resourcesPath: app.isPackaged ? process.resourcesPath : undefined });
@@ -165,6 +169,9 @@ function updateTray() {
 
 async function runConversion(request, { jobId, onProgress } = {}) {
   const id = normalizedJobId(jobId || randomUUID());
+  if (isQuitting || updateInstallRequested) {
+    throw new LoopdropError("UPDATE_INSTALLING", "Loopdrop is restarting to install an update. Try again after it reopens.");
+  }
   if (activeJobs.has(id)) throw new LoopdropError("JOB_EXISTS", "That conversion is already running.");
 
   const controller = new AbortController();
@@ -199,6 +206,7 @@ async function runConversion(request, { jobId, onProgress } = {}) {
     jobProgress.delete(id);
     releaseSuspensionBlocker();
     updateTray();
+    if (activeJobs.size === 0) void updateManager?.conversionFinished();
   }
 }
 
@@ -324,6 +332,35 @@ function openSettingsWindow() {
   else send();
 }
 
+function updateDialogParent() {
+  const focused = BrowserWindow.getFocusedWindow();
+  if (focused && !focused.isDestroyed()) return focused;
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) return mainWindow;
+  if (miniWindow && !miniWindow.isDestroyed() && miniWindow.isVisible()) return miniWindow;
+  return null;
+}
+
+async function runUpdateCommand() {
+  try {
+    if (process.platform !== "darwin" && process.platform !== "win32") {
+      await shell.openExternal(releasesUrl);
+      return;
+    }
+    await updateManager?.checkNow();
+  } catch (error) {
+    showNotification("Loopdrop updates", error instanceof Error ? error.message : "The update action could not be completed.");
+  }
+}
+
+function updateMenuItem() {
+  const state = updateManager?.getState();
+  return {
+    label: updateManager?.menuLabel() || (process.platform === "linux" ? "View Loopdrop Updates…" : "Check for Updates…"),
+    enabled: state?.phase !== "installing",
+    click: () => void runUpdateCommand(),
+  };
+}
+
 function createApplicationMenu() {
   const settingsItem = {
     label: "Settings…",
@@ -347,7 +384,7 @@ function createApplicationMenu() {
         {
           label: app.name,
           submenu: [
-            { role: "about" }, { type: "separator" }, settingsItem, { type: "separator" },
+            { role: "about" }, { type: "separator" }, updateMenuItem(), settingsItem, { type: "separator" },
             { role: "services" }, { type: "separator" }, { role: "hide" }, { role: "hideOthers" }, { role: "unhide" }, { type: "separator" }, { role: "quit" },
           ],
         },
@@ -358,6 +395,7 @@ function createApplicationMenu() {
         { label: "File", submenu: [settingsItem, { type: "separator" }, { role: "quit" }] },
         editMenu,
         windowMenu,
+        { label: "Help", submenu: [updateMenuItem()] },
       ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -425,7 +463,7 @@ function createMiniWindow() {
     sendPendingMiniFile();
   });
   window.on("close", (event) => {
-    if (!isQuitting) {
+    if (!isQuitting && !updateInstallRequested) {
       event.preventDefault();
       window.hide();
     }
@@ -496,6 +534,7 @@ function trayMenu() {
     { label: "Choose a video…", click: () => void chooseVideoFromTray() },
     { label: "Open full app", click: showMainWindow },
     { label: "Settings…", accelerator: "CommandOrControl+,", click: openSettingsWindow },
+    updateMenuItem(),
     { label: "Show last GIF", enabled: Boolean(lastOutputPath), click: () => shell.showItemInFolder(lastOutputPath) },
     { type: "separator" },
     {
@@ -591,6 +630,16 @@ app.whenReady().then(() => {
   ipcMain.handle("window:hide-mini", () => miniWindow?.hide());
   ipcMain.handle("window:open-full", () => showMainWindow());
 
+  updateManager = createUpdateManager({
+    app,
+    autoUpdater,
+    dialog,
+    getDialogParent: updateDialogParent,
+    hasActiveJobs: () => activeJobs.size > 0,
+    setInstallRequested: (requested) => { updateInstallRequested = requested; },
+    notify: showNotification,
+    onStateChange: createApplicationMenu,
+  });
   createApplicationMenu();
   createTray();
   const openedAtLogin = app.isPackaged && app.getLoginItemSettings().wasOpenedAtLogin;
@@ -602,10 +651,7 @@ app.whenReady().then(() => {
   else if (commandLineVideo) void showMiniForFile(commandLineVideo);
   app.on("activate", showMainWindow);
 
-  if (app.isPackaged) {
-    const updateTimer = setTimeout(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 10_000);
-    updateTimer.unref?.();
-  }
+  updateManager.start();
 });
 
 app.on("window-all-closed", () => {
@@ -614,5 +660,6 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  updateManager?.stop();
   for (const controller of activeJobs.values()) controller.abort();
 });

@@ -21,6 +21,8 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
 - Checksum-verified packaged Electron, Chromium, React, and application license
   manifests.
 - Cross-platform CI and draft-release automation for macOS, Windows, and Linux.
+- Manual and periodic signed-update checks on macOS and Windows, with
+  conversion-safe restart deferral and verified release metadata.
 
 ### Fixed
 

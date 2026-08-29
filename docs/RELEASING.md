@@ -22,6 +22,12 @@ Electron, Chromium, React, React DOM, and third-party notices plus a
 SHA-256-backed `LICENSE-MANIFEST.json`; release jobs verify its exact file set and
 hashes before uploading anything.
 
+Automatic installation is enabled only for the signed macOS and Windows
+packages. Linux users are directed to the public Releases page until Loopdrop
+has a signed Linux repository/package-verification model. The first public
+Developer ID build is the update baseline; an Apple Development-signed local
+prototype is not expected to update itself into the production build.
+
 ## One-time repository setup
 
 1. Create the public `ibaiGorordo/loopdrop` repository and push the default
@@ -199,6 +205,10 @@ check all of the following:
 - both deb packages install, launch, and uninstall cleanly;
 - a real local video converts to a correctly timed GIF on each platform;
 - update manifests and their referenced artifacts are present together;
+- a signed older production build finds, downloads, and installs the newer
+  version without interrupting an active conversion;
+- a manual check reports current-version and offline states correctly, and a
+  draft release is not offered before publication;
 - the packaged `LICENSE-MANIFEST.json` under the app's resources/licenses path
   and every notice it references are present;
 - `SHA256SUMS` verifies; and
