@@ -200,8 +200,8 @@ jobs:
             ffmpeg-slices/x64/ffprobe \
             -output vendor/ffmpeg/current/ffprobe
           chmod 0755 vendor/ffmpeg/current/ffmpeg vendor/ffmpeg/current/ffprobe
-          lipo -verify_arch arm64 x86_64 vendor/ffmpeg/current/ffmpeg
-          lipo -verify_arch arm64 x86_64 vendor/ffmpeg/current/ffprobe
+          lipo vendor/ffmpeg/current/ffmpeg -verify_arch arm64 x86_64
+          lipo vendor/ffmpeg/current/ffprobe -verify_arch arm64 x86_64
           cp ffmpeg-slices/arm64/COPYING.LGPLv2.1 vendor/ffmpeg/current/
           cp ffmpeg-slices/arm64/FFMPEG-LICENSE.md vendor/ffmpeg/current/
           cp ffmpeg-slices/arm64/version.txt vendor/ffmpeg/current/
@@ -309,9 +309,9 @@ jobs:
           test -x "$main_binary"
           test -x "$packaged_ffmpeg"
           test -x "$packaged_ffprobe"
-          lipo -verify_arch arm64 x86_64 "$main_binary"
-          lipo -verify_arch arm64 x86_64 "$packaged_ffmpeg"
-          lipo -verify_arch arm64 x86_64 "$packaged_ffprobe"
+          lipo "$main_binary" -verify_arch arm64 x86_64
+          lipo "$packaged_ffmpeg" -verify_arch arm64 x86_64
+          lipo "$packaged_ffprobe" -verify_arch arm64 x86_64
           codesign --verify --strict --verbose=2 "$packaged_ffmpeg"
           codesign --verify --strict --verbose=2 "$packaged_ffprobe"
           "$packaged_ffprobe" -hide_banner -version >/dev/null
