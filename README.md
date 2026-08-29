@@ -24,7 +24,7 @@ and generated GIFs are never uploaded.
 > the signed, notarized, clean-machine-tested release described in
 > [Releasing Loopdrop](docs/RELEASING.md).
 
-![Loopdrop editor showing a selected video, trim controls, GIF settings, and the Create GIF action](docs/images/editor.png)
+![Animated Loopdrop editor demo showing a moving video preview, trim controls, GIF settings, and the Create GIF action](docs/images/editor-demo.gif)
 
 ## Install
 
