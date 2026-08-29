@@ -1,0 +1,85 @@
+name: Continuous integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-checks:
+    name: Source checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - macos-15
+          - windows-2025
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check, build, and test
+        run: npm run check
+
+      - name: Verify the public npm package contents
+        if: runner.os == 'Linux'
+        run: npm pack --dry-run
+
+  ffmpeg-integration:
+    name: LGPL FFmpeg integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install FFmpeg build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential libdigest-sha-perl nasm pkg-config xz-utils
+
+      - name: Build pinned FFmpeg
+        run: ./scripts/build-ffmpeg-unix.sh vendor/ffmpeg/current
+
+      - name: Enforce FFmpeg license policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat vendor/ffmpeg/current/version.txt)" = "9.0.1"
+          ! grep -Eq -- '--enable-(gpl|nonfree|version3)' vendor/ffmpeg/current/build-configuration.txt
+
+      - name: Run integration tests
+        run: npm test
