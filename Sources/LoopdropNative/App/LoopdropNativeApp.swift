@@ -20,7 +20,7 @@ final class LoopdropAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var statusItem: NSStatusItem?
     private var escapeMonitor: Any?
     private var openPanel: NSOpenPanel?
-    private var fallbackSettingsController: LoopdropSettingsWindowController?
+    private var settingsController: LoopdropSettingsWindowController?
     private var isWaitingToTerminate = false
     private lazy var updateCoordinator = NativeUpdateCoordinator(
         currentVersion: Bundle.main.object(
@@ -179,26 +179,16 @@ final class LoopdropAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         }
     }
 
-    private func showSettings() {
-        NSApp.activate(ignoringOtherApps: true)
-        let didOpenSettings = NSApp.sendAction(
-            Selector(("showSettingsWindow:")),
-            to: nil,
-            from: nil
-        ) || NSApp.sendAction(
-            Selector(("showPreferencesWindow:")),
-            to: nil,
-            from: nil
-        )
-
-        guard !didOpenSettings else { return }
-        if fallbackSettingsController == nil {
-            fallbackSettingsController = LoopdropSettingsWindowController(
+    func showSettings() {
+        closePopover()
+        if settingsController == nil {
+            settingsController = LoopdropSettingsWindowController(
                 preferences: model.preferences
             )
         }
-        fallbackSettingsController?.showWindow(nil)
-        fallbackSettingsController?.window?.makeKeyAndOrderFront(nil)
+        settingsController?.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        settingsController?.window?.makeKeyAndOrderFront(nil)
     }
 
     private func showContextMenu(from button: NSStatusBarButton) {
@@ -248,6 +238,7 @@ private final class LoopdropSettingsWindowController: NSWindowController {
         window.title = "Loopdrop Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
+        window.tabbingMode = .disallowed
         window.center()
         super.init(window: window)
     }

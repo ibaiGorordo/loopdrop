@@ -10,6 +10,8 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
 
 - The macOS status item now uses Loopdrop's own loop-and-drop mark instead of
   the generic `film.stack` system symbol.
+- Settings now opens reliably from both the mini converter and its context
+  menu in the menu-bar-only application.
 
 ## [0.2.0] - 2026-08-30
 
