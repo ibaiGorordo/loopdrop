@@ -3,50 +3,39 @@ import XCTest
 @testable import LoopdropNative
 
 final class MenuBarIconTests: XCTestCase {
-    func testIconIsACompactTemplateWithTransparentSpace() throws {
+    func testIconIsAResolutionIndependentTemplate() {
         let image = LoopdropMenuBarIcon.makeImage()
 
         XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
         XCTAssertTrue(image.isTemplate)
+        XCTAssertEqual(image.representations.count, 1)
+        XCTAssertTrue(image.representations[0] is NSCustomImageRep)
+        XCTAssertEqual(image.representations[0].pixelsWide, 0)
+        XCTAssertEqual(image.representations[0].pixelsHigh, 0)
+    }
+
+    func testVectorMarkRendersWithAntialiasedTransparentEdges() throws {
+        let image = LoopdropMenuBarIcon.makeImage()
 
         let data = try XCTUnwrap(image.tiffRepresentation)
         let bitmap = try XCTUnwrap(NSBitmapImageRep(data: data))
         var visiblePixels = 0
+        var antialiasedPixels = 0
 
         for y in 0 ..< bitmap.pixelsHigh {
             for x in 0 ..< bitmap.pixelsWide {
-                if (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 {
+                let alpha = bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0
+                if alpha > 0.1 {
                     visiblePixels += 1
+                }
+                if alpha > 0, alpha < 1 {
+                    antialiasedPixels += 1
                 }
             }
         }
 
         XCTAssertGreaterThan(visiblePixels, 0)
         XCTAssertLessThan(visiblePixels, bitmap.pixelsWide * bitmap.pixelsHigh)
-    }
-
-    func testSourceArtworkIncludesStandardAndRetinaRepresentations() throws {
-        let repository = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let resources = repository.appendingPathComponent("Resources", isDirectory: true)
-
-        let standard = try bitmap(
-            at: resources.appendingPathComponent("LoopdropMenuBarTemplate.png")
-        )
-        let retina = try bitmap(
-            at: resources.appendingPathComponent("LoopdropMenuBarTemplate@2x.png")
-        )
-
-        XCTAssertEqual(standard.pixelsWide, 18)
-        XCTAssertEqual(standard.pixelsHigh, 18)
-        XCTAssertEqual(retina.pixelsWide, 36)
-        XCTAssertEqual(retina.pixelsHigh, 36)
-    }
-
-    private func bitmap(at url: URL) throws -> NSBitmapImageRep {
-        let data = try Data(contentsOf: url)
-        return try XCTUnwrap(NSBitmapImageRep(data: data))
+        XCTAssertGreaterThan(antialiasedPixels, 0)
     }
 }

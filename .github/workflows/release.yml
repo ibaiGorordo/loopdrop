@@ -67,8 +67,6 @@ jobs:
           test -d Sources/LoopdropNative
           test -d Tests/LoopdropNativeTests
           test -x scripts/build-app.sh
-          test -f Resources/LoopdropMenuBarTemplate.png
-          test -f Resources/LoopdropMenuBarTemplate@2x.png
           command -v jq >/dev/null
 
           dependency_graph="$RUNNER_TEMP/loopdrop-swift-dependencies.json"
@@ -232,8 +230,6 @@ jobs:
             test ! -e "$bundle/Contents/Frameworks"
             test -f "$bundle/Contents/Resources/LICENSE"
             test -f "$bundle/Contents/Resources/Loopdrop.icns"
-            test -f "$bundle/Contents/Resources/LoopdropMenuBarTemplate.png"
-            test -f "$bundle/Contents/Resources/LoopdropMenuBarTemplate@2x.png"
             test -f "$bundle/Contents/_CodeSignature/CodeResources"
             cmp -s LICENSE "$bundle/Contents/Resources/LICENSE"
             if /usr/bin/find "$bundle" -type l -print -quit | /usr/bin/grep -q .; then
@@ -250,13 +246,11 @@ jobs:
                 Contents/CodeResources|\
                 Contents/Resources/LICENSE|\
                 Contents/Resources/Loopdrop.icns|\
-                Contents/Resources/LoopdropMenuBarTemplate.png|\
-                Contents/Resources/LoopdropMenuBarTemplate@2x.png|\
                 Contents/_CodeSignature/CodeResources) ;;
                 *) echo "Unexpected file in application bundle: $relative_file" >&2; exit 1 ;;
               esac
             done < <(/usr/bin/find "$bundle" -type f | /usr/bin/sort)
-            if [ "$bundled_file_count" -lt 7 ] || [ "$bundled_file_count" -gt 8 ]; then
+            if [ "$bundled_file_count" -lt 5 ] || [ "$bundled_file_count" -gt 6 ]; then
               echo "Unexpected application bundle file count: $bundled_file_count" >&2
               exit 1
             fi

@@ -45,8 +45,6 @@ jobs:
           test -d Sources/LoopdropNative
           test -d Tests/LoopdropNativeTests
           test -f Resources/Info.plist
-          test -f Resources/LoopdropMenuBarTemplate.png
-          test -f Resources/LoopdropMenuBarTemplate@2x.png
           test -x scripts/build-app.sh
           command -v jq >/dev/null
 
@@ -103,8 +101,6 @@ jobs:
           test ! -e "$app/Contents/Frameworks"
           test -f "$app/Contents/Resources/LICENSE"
           test -f "$app/Contents/Resources/Loopdrop.icns"
-          test -f "$app/Contents/Resources/LoopdropMenuBarTemplate.png"
-          test -f "$app/Contents/Resources/LoopdropMenuBarTemplate@2x.png"
           test -f "$app/Contents/_CodeSignature/CodeResources"
           cmp -s LICENSE "$app/Contents/Resources/LICENSE"
           if /usr/bin/find "$app" -type l -print -quit | /usr/bin/grep -q .; then
@@ -120,13 +116,11 @@ jobs:
               Contents/MacOS/loopdrop|\
               Contents/Resources/LICENSE|\
               Contents/Resources/Loopdrop.icns|\
-              Contents/Resources/LoopdropMenuBarTemplate.png|\
-              Contents/Resources/LoopdropMenuBarTemplate@2x.png|\
               Contents/_CodeSignature/CodeResources) ;;
               *) echo "Unexpected file in application bundle: $relative_file" >&2; exit 1 ;;
             esac
           done < <(/usr/bin/find "$app" -type f | /usr/bin/sort)
-          test "$bundled_file_count" -eq 7
+          test "$bundled_file_count" -eq 5
 
           test "$(/usr/bin/plutil -extract CFBundleIdentifier raw "$plist")" = \
             "io.github.ibaigorordo.loopdrop"

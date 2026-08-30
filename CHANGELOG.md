@@ -8,8 +8,8 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
 
 ### Fixed
 
-- The macOS status item now uses Loopdrop's own loop-and-drop mark instead of
-  the generic `film.stack` system symbol.
+- The macOS status item now uses a smooth, resolution-independent version of
+  Loopdrop's loop-and-drop mark instead of the generic `film.stack` symbol.
 - Settings now opens reliably from both the mini converter and its context
   menu in the menu-bar-only application.
 
