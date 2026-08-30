@@ -6,6 +6,11 @@ uses [Semantic Versioning](https://semver.org/) and follows the structure of
 
 ## [Unreleased]
 
+### Fixed
+
+- The macOS status item now uses Loopdrop's own loop-and-drop mark instead of
+  the generic `film.stack` system symbol.
+
 ## [0.2.0] - 2026-08-30
 
 ### Changed

@@ -89,13 +89,9 @@ final class LoopdropAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         statusItem = item
 
         guard let button = item.button else { return }
-        let image = NSImage(
-            systemSymbolName: "film.stack",
-            accessibilityDescription: "Loopdrop"
-        )
-        image?.isTemplate = true
-        button.image = image
+        button.image = LoopdropMenuBarIcon.makeImage()
         button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
         button.toolTip = "Loopdrop"
         button.target = self
         button.action = #selector(statusItemPressed(_:))

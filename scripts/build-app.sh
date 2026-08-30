@@ -46,6 +46,8 @@ x86_64_scratch="$build_root/swiftpm-x86_64"
 app_output_root="$build_root/app"
 app_bundle="$app_output_root/loopdrop.app"
 icon_source="$package_dir/Resources/Loopdrop.icns"
+menu_icon_source="$package_dir/Resources/LoopdropMenuBarTemplate.png"
+menu_icon_retina_source="$package_dir/Resources/LoopdropMenuBarTemplate@2x.png"
 license_source="$package_dir/LICENSE"
 
 # The bundle destination is deliberately fixed beneath this package. Refuse
@@ -69,6 +71,10 @@ fi
 
 if [ ! -f "$icon_source" ]; then
     echo "Missing app icon: $icon_source" >&2
+    exit 1
+fi
+if [ ! -f "$menu_icon_source" ] || [ ! -f "$menu_icon_retina_source" ]; then
+    echo "Missing standard or Retina menu-bar icon beneath $package_dir/Resources" >&2
     exit 1
 fi
 if [ ! -f "$license_source" ]; then
@@ -194,6 +200,8 @@ done
 
 /usr/bin/install -m 644 "$plist_source" "$contents_dir/Info.plist"
 /usr/bin/install -m 644 "$icon_source" "$resources_dir/Loopdrop.icns"
+/usr/bin/install -m 644 "$menu_icon_source" "$resources_dir/LoopdropMenuBarTemplate.png"
+/usr/bin/install -m 644 "$menu_icon_retina_source" "$resources_dir/LoopdropMenuBarTemplate@2x.png"
 /usr/bin/install -m 644 "$license_source" "$resources_dir/LICENSE"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $loopdrop_marketing_version" "$contents_dir/Info.plist"
